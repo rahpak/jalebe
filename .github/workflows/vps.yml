@@ -1,0 +1,36 @@
+name: GitHub VPS with SSH
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ssh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update and install dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y openssh-server curl
+          sudo systemctl enable ssh
+          sudo systemctl start ssh
+
+      - name: Set root password
+        run: |
+          echo "root:123456" | sudo chpasswd
+
+      - name: Install ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update -y
+          sudo apt install ngrok -y
+          ngrok config add-authtoken ${{ secrets.NGROK_TOKEN }}
+
+      - name: Start SSH tunnel
+        run: |
+          ngrok tcp 22 &
+          sleep 10
+          curl -s localhost:4040/api/tunnels
+
+      - name: Keep VPS Alive
+        run: sleep 21600  # 6 hours
